@@ -37,12 +37,19 @@ final class SessionManager {
         let discovered = SessionScanner.scan()
         var added = 0
 
+        let staleThreshold: TimeInterval = 2 * 3600 // 2 hours
+
         for disc in discovered {
             if sessions[disc.sessionId] == nil {
                 let label = (disc.cwd as NSString).lastPathComponent
                 let lastActivity = SessionScanner.lastActivityTime(
                     sessionId: disc.sessionId, cwd: disc.cwd
                 ) ?? disc.startedAt
+
+                // Skip stale sessions (no activity in 2+ hours)
+                if Date().timeIntervalSince(lastActivity) > staleThreshold {
+                    continue
+                }
 
                 sessions[disc.sessionId] = AgentSession(
                     id: disc.sessionId,
@@ -60,6 +67,18 @@ final class SessionManager {
         let aliveIds = Set(discovered.map { $0.sessionId })
         let deadIds = sessions.keys.filter { !aliveIds.contains($0) }
         for id in deadIds {
+            sessions.removeValue(forKey: id)
+            idleTimers[id]?.invalidate()
+            idleTimers.removeValue(forKey: id)
+        }
+
+        // Also remove tracked sessions that have gone stale (idle 2+ hours, no hook activity)
+        let staleIds = sessions.keys.filter { id in
+            guard let session = sessions[id] else { return false }
+            return session.status == .idle
+                && Date().timeIntervalSince(session.lastEventTime) > staleThreshold
+        }
+        for id in staleIds {
             sessions.removeValue(forKey: id)
             idleTimers[id]?.invalidate()
             idleTimers.removeValue(forKey: id)
