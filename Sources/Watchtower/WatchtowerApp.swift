@@ -28,6 +28,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             HookInstaller.install()
         }
 
+        // Scan for all existing Claude Code sessions
+        SessionManager.shared.startPeriodicScan()
+
         // Set up notch overlay after a brief delay to let the window server settle
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             NotchWindowController.shared.setup()

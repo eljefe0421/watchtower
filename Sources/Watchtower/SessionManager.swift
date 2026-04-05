@@ -27,6 +27,58 @@ final class SessionManager {
     /// True if any agent needs attention
     var hasAttention: Bool { attentionCount > 0 }
 
+    private var scanTimer: Timer?
+
+    // MARK: - Session Discovery
+
+    /// Scan ~/.claude/sessions/ for all running Claude Code processes.
+    /// Adds any sessions not already tracked (as idle).
+    func scanForSessions() {
+        let discovered = SessionScanner.scan()
+        var added = 0
+
+        for disc in discovered {
+            if sessions[disc.sessionId] == nil {
+                let label = (disc.cwd as NSString).lastPathComponent
+                let lastActivity = SessionScanner.lastActivityTime(
+                    sessionId: disc.sessionId, cwd: disc.cwd
+                ) ?? disc.startedAt
+
+                sessions[disc.sessionId] = AgentSession(
+                    id: disc.sessionId,
+                    label: label,
+                    cwd: disc.cwd,
+                    status: .idle,
+                    lastEventTime: lastActivity,
+                    entrypoint: disc.entrypoint
+                )
+                added += 1
+            }
+        }
+
+        // Remove sessions whose processes have died
+        let aliveIds = Set(discovered.map { $0.sessionId })
+        let deadIds = sessions.keys.filter { !aliveIds.contains($0) }
+        for id in deadIds {
+            sessions.removeValue(forKey: id)
+            idleTimers[id]?.invalidate()
+            idleTimers.removeValue(forKey: id)
+        }
+
+        if added > 0 || !deadIds.isEmpty {
+            Log.info("[Watchtower] Scan: found \(discovered.count) alive, added \(added), removed \(deadIds.count) dead")
+            NotchWindowController.shared.refreshPanel()
+        }
+    }
+
+    /// Start periodic scanning (every 10 seconds)
+    func startPeriodicScan() {
+        scanForSessions() // immediate first scan
+        scanTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            self?.scanForSessions()
+        }
+    }
+
     // MARK: - Event Processing
 
     func processEvent(_ event: HookEvent) {

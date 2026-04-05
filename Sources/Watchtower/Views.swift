@@ -203,10 +203,19 @@ struct AgentRowView: View {
                 .padding(.top, 4)
 
             VStack(alignment: .leading, spacing: 3) {
-                HStack {
+                HStack(spacing: 4) {
                     Text(session.label)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.white)
+
+                    // Show if CLI or Desktop
+                    Text(session.entrypoint == "claude-desktop" ? "app" : "cli")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.3))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
 
                     Text(timeAgo(session.lastEventTime))
                         .font(.system(size: 10))

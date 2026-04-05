@@ -24,6 +24,7 @@ struct AgentSession: Identifiable {
     var currentToolSummary: String?     // brief description of what tool is doing
     var lastEventTime: Date = Date()
     var pendingPermission: PermissionRequest?
+    var entrypoint: String = "cli"      // "cli" or "claude-desktop"
 }
 
 // MARK: - Hook Event (parsed from incoming JSON)
