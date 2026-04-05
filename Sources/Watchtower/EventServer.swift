@@ -190,7 +190,13 @@ final class EventServer {
                 self.lock.lock()
                 let respond = self.pendingResponses.removeValue(forKey: sessionId)
                 self.lock.unlock()
-                respond?(nil) // empty response = fall through to terminal
+                if let respond {
+                    respond(nil) // empty response = fall through to terminal
+                    // Clear the needsAttention status since user handled it in terminal
+                    DispatchQueue.main.async {
+                        SessionManager.shared.clearPermission(for: sessionId)
+                    }
+                }
             }
         } else {
             // All other events: respond immediately

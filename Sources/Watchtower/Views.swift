@@ -82,7 +82,7 @@ struct CompactDotsView: View {
                     }
                 }
             }
-            .padding(.bottom, 4)
+            .padding(.bottom, 10)
         }
         .padding(.horizontal, 16)
     }
@@ -97,9 +97,9 @@ struct StatusDot: View {
     var body: some View {
         Circle()
             .fill(dotColor)
-            .frame(width: 10, height: 10)
-            .shadow(color: dotColor.opacity(status == .needsAttention ? 0.9 : 0.5),
-                    radius: status == .needsAttention ? 8 : 3)
+            .frame(width: 12, height: 12)
+            .shadow(color: dotColor.opacity(status == .needsAttention ? 0.9 : 0.6),
+                    radius: status == .needsAttention ? 10 : 4)
             .scaleEffect(isPulsing && status == .needsAttention ? 1.5 : 1.0)
             .animation(
                 status == .needsAttention
@@ -118,10 +118,10 @@ struct StatusDot: View {
 
     private var dotColor: Color {
         switch status {
-        case .working: return .green
-        case .needsAttention: return .red
-        case .error: return .orange
-        case .idle: return Color(white: 0.5)
+        case .working: return Color(red: 0.2, green: 0.9, blue: 0.3)      // bright green
+        case .needsAttention: return Color(red: 1.0, green: 0.25, blue: 0.25) // bright red
+        case .error: return Color(red: 1.0, green: 0.6, blue: 0.0)         // amber
+        case .idle: return Color(white: 0.45)                               // dim gray
         }
     }
 }

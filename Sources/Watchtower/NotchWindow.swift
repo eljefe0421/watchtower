@@ -41,7 +41,7 @@ final class NotchPanel: NSPanel {
         let hasNotch = screen.safeAreaInsets.top > 0
         let notchHeight = screen.safeAreaInsets.top
 
-        let compactHeight: CGFloat = hasNotch ? notchHeight + 14 : 44
+        let compactHeight: CGFloat = hasNotch ? notchHeight + 34 : 50
         let expandedHeight: CGFloat = hasNotch ? notchHeight + 320 : 360
         let panelHeight = expanded ? expandedHeight : compactHeight
 

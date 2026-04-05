@@ -39,6 +39,7 @@ final class SessionManager {
             sessions[event.sessionId]?.status = .working
             sessions[event.sessionId]?.currentTool = event.toolName
             sessions[event.sessionId]?.currentToolSummary = event.toolSummary
+            sessions[event.sessionId]?.pendingPermission = nil
             sessions[event.sessionId]?.lastEventTime = Date()
 
         case "PostToolUse":
