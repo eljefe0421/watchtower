@@ -57,16 +57,101 @@ enum SessionScanner {
 
     /// Check activity by looking at the transcript file's modification time
     static func lastActivityTime(sessionId: String, cwd: String) -> Date? {
+        guard let path = findTranscriptPath(sessionId: sessionId) else { return nil }
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+           let modDate = attrs[.modificationDate] as? Date {
+            return modDate
+        }
+        return nil
+    }
+
+    /// Extract a short label from the first user prompt in the transcript.
+    /// Returns something like "fix the auth bug" or "add dark mode toggle"
+    static func firstPromptLabel(sessionId: String) -> String? {
+        guard let path = findTranscriptPath(sessionId: sessionId),
+              let handle = FileHandle(forReadingAtPath: path) else {
+            return nil
+        }
+        defer { handle.closeFile() }
+
+        // Read first 50KB max (first prompt is always near the top)
+        let data = handle.readData(ofLength: 50_000)
+        guard let content = String(data: data, encoding: .utf8) else { return nil }
+
+        for line in content.components(separatedBy: "\n") {
+            guard !line.isEmpty,
+                  let json = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  json["type"] as? String == "user",
+                  let message = json["message"] as? [String: Any],
+                  let messageContent = message["content"] else {
+                continue
+            }
+
+            var text: String?
+
+            // Content can be a string or array of content blocks
+            if let str = messageContent as? String {
+                text = str
+            } else if let blocks = messageContent as? [[String: Any]] {
+                // Find first text block (skip tool_result blocks)
+                for block in blocks {
+                    if block["type"] as? String == "text",
+                       let t = block["text"] as? String {
+                        text = t
+                        break
+                    }
+                }
+            }
+
+            guard var prompt = text, !prompt.isEmpty else { continue }
+
+            // Clean up: take first line, trim, lowercase
+            prompt = prompt.components(separatedBy: "\n").first ?? prompt
+            prompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Remove common prefixes
+            let prefixes = ["can you ", "please ", "hey ", "hi ", "help me ", "i want to ", "i need to ", "let's ", "lets "]
+            for prefix in prefixes {
+                if prompt.lowercased().hasPrefix(prefix) {
+                    prompt = String(prompt.dropFirst(prefix.count))
+                    break
+                }
+            }
+
+            // Truncate to ~40 chars at a word boundary
+            if prompt.count > 40 {
+                let truncated = String(prompt.prefix(40))
+                if let lastSpace = truncated.lastIndex(of: " ") {
+                    prompt = String(truncated[..<lastSpace])
+                } else {
+                    prompt = truncated
+                }
+                prompt += "..."
+            }
+
+            // Capitalize first letter
+            if !prompt.isEmpty {
+                prompt = prompt.prefix(1).uppercased() + prompt.dropFirst()
+            }
+
+            return prompt
+        }
+
+        return nil
+    }
+
+    // MARK: - Private
+
+    private static func findTranscriptPath(sessionId: String) -> String? {
         let projectsDir = NSHomeDirectory() + "/.claude/projects"
         guard let dirs = try? FileManager.default.contentsOfDirectory(atPath: projectsDir) else {
             return nil
         }
 
         for dir in dirs {
-            let transcriptPath = projectsDir + "/" + dir + "/" + sessionId + ".jsonl"
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: transcriptPath),
-               let modDate = attrs[.modificationDate] as? Date {
-                return modDate
+            let path = projectsDir + "/" + dir + "/" + sessionId + ".jsonl"
+            if FileManager.default.fileExists(atPath: path) {
+                return path
             }
         }
         return nil

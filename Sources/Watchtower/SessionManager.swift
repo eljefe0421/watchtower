@@ -41,7 +41,6 @@ final class SessionManager {
 
         for disc in discovered {
             if sessions[disc.sessionId] == nil {
-                let label = (disc.cwd as NSString).lastPathComponent
                 let lastActivity = SessionScanner.lastActivityTime(
                     sessionId: disc.sessionId, cwd: disc.cwd
                 ) ?? disc.startedAt
@@ -50,6 +49,11 @@ final class SessionManager {
                 if Date().timeIntervalSince(lastActivity) > staleThreshold {
                     continue
                 }
+
+                // Use first user prompt as label, fall back to folder name
+                let promptLabel = SessionScanner.firstPromptLabel(sessionId: disc.sessionId)
+                let folderName = (disc.cwd as NSString).lastPathComponent
+                let label = promptLabel ?? folderName
 
                 sessions[disc.sessionId] = AgentSession(
                     id: disc.sessionId,
@@ -187,7 +191,10 @@ final class SessionManager {
 
     private func ensureSession(for event: HookEvent) {
         if sessions[event.sessionId] == nil {
-            let label = (event.cwd as NSString).lastPathComponent
+            let promptLabel = SessionScanner.firstPromptLabel(sessionId: event.sessionId)
+            let folderName = (event.cwd as NSString).lastPathComponent
+            let label = promptLabel ?? folderName
+
             sessions[event.sessionId] = AgentSession(
                 id: event.sessionId,
                 label: label,
