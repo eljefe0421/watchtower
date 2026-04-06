@@ -237,16 +237,20 @@ final class SessionManager {
         }
     }
 
-    /// After 90 seconds of no events, mark the session idle
+    /// After 5 minutes of no hook events, assume the agent finished.
+    /// Long responses, subagent work, or complex generation can take
+    /// several minutes between tool calls — 90s was way too aggressive.
     private func resetIdleTimer(for sessionId: String) {
         idleTimers[sessionId]?.invalidate()
-        idleTimers[sessionId] = Timer.scheduledTimer(withTimeInterval: 90, repeats: false) { [weak self] _ in
+        idleTimers[sessionId] = Timer.scheduledTimer(withTimeInterval: 300, repeats: false) { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self else { return }
                 if self.sessions[sessionId]?.status == .working {
-                    self.sessions[sessionId]?.status = .idle
+                    // Was working, no events for 5 min → probably done
+                    self.sessions[sessionId]?.status = .done
                     self.sessions[sessionId]?.currentTool = nil
                     self.sessions[sessionId]?.currentToolSummary = nil
+                    NotchWindowController.shared.refreshPanel()
                 }
             }
         }
