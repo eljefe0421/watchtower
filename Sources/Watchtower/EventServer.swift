@@ -162,6 +162,17 @@ final class EventServer {
     // MARK: - Routing
 
     private func routeRequest(method: String, path: String, body: Data?, connection: NWConnection) {
+        // POST /toggle — show/hide the notch overlay
+        if method == "POST", path == "/toggle" || path == "/toggle/" {
+            DispatchQueue.main.async {
+                NotchWindowController.shared.toggleVisibility()
+            }
+            let hidden = NotchWindowController.shared.isHidden
+            let body = "{\"hidden\": \(!hidden)}".data(using: .utf8)
+            sendResponse(connection: connection, status: 200, body: body)
+            return
+        }
+
         // POST /name — rename a session
         if method == "POST", path == "/name" || path == "/name/" {
             if let body,

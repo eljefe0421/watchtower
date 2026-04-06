@@ -86,6 +86,7 @@ final class NotchWindowController {
     static let shared = NotchWindowController()
 
     var isExpanded = false
+    var isHidden = false
     private var panel: NotchPanel?
     private var clickMonitor: Any?
 
@@ -142,6 +143,19 @@ final class NotchWindowController {
             if let panel = self.panel, !panel.frame.contains(NSEvent.mouseLocation) {
                 self.collapse()
             }
+        }
+    }
+
+    func toggleVisibility() {
+        if isHidden {
+            panel?.orderFrontRegardless()
+            isHidden = false
+            Log.info("[Watchtower] Notch shown")
+        } else {
+            panel?.orderOut(nil)
+            isHidden = true
+            isExpanded = false
+            Log.info("[Watchtower] Notch hidden")
         }
     }
 

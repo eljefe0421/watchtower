@@ -1,6 +1,6 @@
 ---
 name: watchtower
-description: "Control the Watchtower notch monitor for Claude Code agents. Use this skill when the user says: 'watchtower', 'start watchtower', 'stop watchtower', 'watchtower status', 'kill watchtower', 'agents', 'show my agents', 'what agents are running', 'notch', 'rebuild watchtower', 'name this', 'rename this session', 'call this session'."
+description: "Control the Watchtower notch monitor for Claude Code agents. Use this skill when the user says: 'watchtower', 'start watchtower', 'stop watchtower', 'watchtower status', 'kill watchtower', 'agents', 'show my agents', 'what agents are running', 'notch', 'rebuild watchtower', 'name this', 'rename this session', 'call this session', 'hide notch', 'show notch', 'toggle notch'."
 ---
 
 # Watchtower Control
@@ -19,6 +19,7 @@ Manage the Watchtower macOS notch overlay that monitors parallel Claude Code age
 | `show my agents` / `what agents are running` | List all detected Claude Code sessions |
 | `watchtower logs` | Show recent log entries |
 | `name this X` / `rename this session X` / `call this X` | Rename the current session in Watchtower |
+| `hide notch` / `show notch` / `toggle notch` | Show or hide the notch overlay |
 
 ## Implementation
 
@@ -61,6 +62,11 @@ curl -s -X POST http://localhost:47777/name \
 
 Replace THE_NAME_HERE with the user's desired name. Keep it short (under 25 chars).
 The name persists across Watchtower restarts in `~/.claude/watchtower/{sessionId}.json`.
+
+### Toggle notch visibility (hide/show)
+```bash
+curl -s -X POST http://localhost:47777/toggle
+```
 
 ### Show all agents
 ```bash
