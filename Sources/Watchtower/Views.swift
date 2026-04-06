@@ -83,9 +83,10 @@ struct CompactDotsView: View {
             }
         }
         .padding(.horizontal, 16)
-        // Center dots vertically in the notch area (top half of panel)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .padding(.bottom, 8)
+        // Dots go at the BOTTOM of the panel (below the physical notch)
+        // The top portion is just black that blends with the notch hardware
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        .padding(.bottom, 6)
     }
 }
 

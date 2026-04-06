@@ -46,7 +46,10 @@ final class NotchPanel: NSPanel {
         let hasNotch = screen.safeAreaInsets.top > 0
         let notchHeight = screen.safeAreaInsets.top
 
-        let compactHeight: CGFloat = hasNotch ? notchHeight : 38
+        // Panel extends from behind the notch (black blends with it) down below
+        // where the dots are actually visible. notchHeight = physical notch,
+        // + 28 = space below for dots to render
+        let compactHeight: CGFloat = hasNotch ? notchHeight + 28 : 38
         let expandedHeight: CGFloat = hasNotch ? notchHeight + 320 : 360
         let panelHeight = expanded ? expandedHeight : compactHeight
 
