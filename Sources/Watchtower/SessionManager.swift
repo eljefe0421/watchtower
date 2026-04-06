@@ -155,7 +155,8 @@ final class SessionManager {
                     )
                 }
             } else if event.notificationType == "idle_prompt" {
-                sessions[event.sessionId]?.status = .idle
+                // Agent is waiting for user input — that's needs attention, not idle
+                sessions[event.sessionId]?.status = .needsAttention
                 sessions[event.sessionId]?.currentTool = nil
                 sessions[event.sessionId]?.currentToolSummary = nil
             }
@@ -171,7 +172,8 @@ final class SessionManager {
             sessions[event.sessionId]?.lastEventTime = Date()
 
         case "Stop":
-            sessions[event.sessionId]?.status = .done
+            // Agent finished responding — waiting for user's next message
+            sessions[event.sessionId]?.status = .needsAttention
             sessions[event.sessionId]?.currentTool = nil
             sessions[event.sessionId]?.currentToolSummary = nil
             sessions[event.sessionId]?.pendingPermission = nil
