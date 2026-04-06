@@ -3,10 +3,9 @@ import Foundation
 // MARK: - Agent Session
 
 enum AgentStatus: String {
-    case done           // green — task complete, stopped normally
     case working        // yellow — actively using tools
-    case needsAttention // red pulse — needs user input
-    case idle           // gray — idle chats, other status
+    case done           // green — task complete
+    case needsAttention // red — needs user input (permission or question)
 }
 
 struct PermissionRequest {
@@ -19,7 +18,7 @@ struct AgentSession: Identifiable {
     let id: String                      // session_id from hooks
     var label: String                   // derived from cwd (folder name)
     var cwd: String
-    var status: AgentStatus = .idle
+    var status: AgentStatus = .done
     var currentTool: String?
     var currentToolSummary: String?     // brief description of what tool is doing
     var lastEventTime: Date = Date()

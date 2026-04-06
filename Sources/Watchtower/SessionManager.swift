@@ -57,11 +57,11 @@ final class SessionManager {
                 let label = customName
                     ?? ((promptLabel?.isEmpty == false) ? promptLabel! : folderName)
 
-                // If transcript was modified recently, the session is probably
-                // waiting for input (red). Otherwise it's idle (gray).
+                // Recent activity = probably waiting for input (red)
+                // Older = finished a while ago (green/done)
                 let recentThreshold: TimeInterval = 300  // 5 minutes
                 let isRecent = Date().timeIntervalSince(lastActivity) < recentThreshold
-                let initialStatus: AgentStatus = isRecent ? .needsAttention : .idle
+                let initialStatus: AgentStatus = isRecent ? .needsAttention : .done
 
                 sessions[disc.sessionId] = AgentSession(
                     id: disc.sessionId,
@@ -87,7 +87,7 @@ final class SessionManager {
         // Also remove tracked sessions that have gone stale (idle 2+ hours, no hook activity)
         let staleIds = sessions.keys.filter { id in
             guard let session = sessions[id] else { return false }
-            return (session.status == .idle || session.status == .done)
+            return session.status == .done
                 && Date().timeIntervalSince(session.lastEventTime) > staleThreshold
         }
         for id in staleIds {
@@ -161,13 +161,10 @@ final class SessionManager {
                     )
                 }
             } else if event.notificationType == "idle_prompt" {
-                // idle_prompt = Claude finished, waiting for next message.
-                // That's green (done), not red. Red is only for permission blocks.
-                if sessions[event.sessionId]?.status != .done {
-                    sessions[event.sessionId]?.status = .done
-                    sessions[event.sessionId]?.currentTool = nil
-                    sessions[event.sessionId]?.currentToolSummary = nil
-                }
+                // Claude is waiting for user input — red
+                sessions[event.sessionId]?.status = .needsAttention
+                sessions[event.sessionId]?.currentTool = nil
+                sessions[event.sessionId]?.currentToolSummary = nil
             }
             sessions[event.sessionId]?.lastEventTime = Date()
 
@@ -249,7 +246,6 @@ final class SessionManager {
             DispatchQueue.main.async {
                 guard let self else { return }
                 if self.sessions[sessionId]?.status == .working {
-                    // Was working, no events for 5 min → probably done
                     self.sessions[sessionId]?.status = .done
                     self.sessions[sessionId]?.currentTool = nil
                     self.sessions[sessionId]?.currentToolSummary = nil
