@@ -161,6 +161,33 @@ enum SessionScanner {
         return text.isEmpty ? nil ?? "" : text
     }
 
+    // MARK: - Custom Names
+
+    private static let metadataDir = NSHomeDirectory() + "/.claude/watchtower"
+
+    /// Read a custom name set by the user for this session
+    static func customName(sessionId: String) -> String? {
+        let path = metadataDir + "/" + sessionId + ".json"
+        guard let data = FileManager.default.contents(atPath: path),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let name = json["name"] as? String, !name.isEmpty else {
+            return nil
+        }
+        return name
+    }
+
+    /// Set a custom name for a session (called from hook or CLI)
+    static func setCustomName(sessionId: String, name: String) {
+        let dirPath = metadataDir
+        try? FileManager.default.createDirectory(atPath: dirPath, withIntermediateDirectories: true)
+
+        let path = dirPath + "/" + sessionId + ".json"
+        let json: [String: Any] = ["name": name, "updatedAt": ISO8601DateFormatter().string(from: Date())]
+        if let data = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted) {
+            try? data.write(to: URL(fileURLWithPath: path))
+        }
+    }
+
     // MARK: - Private
 
     private static func findTranscriptPath(sessionId: String) -> String? {

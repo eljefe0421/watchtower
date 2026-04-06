@@ -50,10 +50,12 @@ final class SessionManager {
                     continue
                 }
 
-                // Use most recent user prompt as label, fall back to folder name
+                // Priority: custom name > prompt label > folder name
+                let customName = SessionScanner.customName(sessionId: disc.sessionId)
                 let promptLabel = SessionScanner.promptLabel(sessionId: disc.sessionId)
                 let folderName = (disc.cwd as NSString).lastPathComponent
-                let label = (promptLabel?.isEmpty == false) ? promptLabel! : folderName
+                let label = customName
+                    ?? ((promptLabel?.isEmpty == false) ? promptLabel! : folderName)
 
                 sessions[disc.sessionId] = AgentSession(
                     id: disc.sessionId,
@@ -212,9 +214,11 @@ final class SessionManager {
 
     private func ensureSession(for event: HookEvent) {
         if sessions[event.sessionId] == nil {
+            let customName = SessionScanner.customName(sessionId: event.sessionId)
             let promptLabel = SessionScanner.promptLabel(sessionId: event.sessionId)
             let folderName = (event.cwd as NSString).lastPathComponent
-            let label = (promptLabel?.isEmpty == false) ? promptLabel! : folderName
+            let label = customName
+                ?? ((promptLabel?.isEmpty == false) ? promptLabel! : folderName)
 
             sessions[event.sessionId] = AgentSession(
                 id: event.sessionId,

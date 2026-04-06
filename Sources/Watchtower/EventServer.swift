@@ -162,6 +162,24 @@ final class EventServer {
     // MARK: - Routing
 
     private func routeRequest(method: String, path: String, body: Data?, connection: NWConnection) {
+        // POST /name — rename a session
+        if method == "POST", path == "/name" || path == "/name/" {
+            if let body,
+               let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+               let sessionId = json["session_id"] as? String,
+               let name = json["name"] as? String {
+                SessionScanner.setCustomName(sessionId: sessionId, name: name)
+                // Update the in-memory session too
+                DispatchQueue.main.async {
+                    SessionManager.shared.sessions[sessionId]?.label = name
+                    NotchWindowController.shared.refreshPanel()
+                }
+                Log.info("[Watchtower] Renamed \(sessionId.prefix(8)) → \"\(name)\"")
+            }
+            sendResponse(connection: connection, status: 200, body: nil)
+            return
+        }
+
         guard method == "POST", path == "/events" || path == "/events/" else {
             sendResponse(connection: connection, status: 404, body: nil)
             return
