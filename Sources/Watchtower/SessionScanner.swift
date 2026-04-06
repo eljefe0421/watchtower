@@ -65,17 +65,17 @@ enum SessionScanner {
         return nil
     }
 
-    /// Extract a short label from the first user prompt in the transcript.
-    /// Returns something like "fix the auth bug" or "add dark mode toggle"
-    static func firstPromptLabel(sessionId: String) -> String? {
+    /// Extract a label from the first substantive user prompt in the transcript.
+    /// Skips very short prompts (< 15 chars) to find one that describes the task.
+    static func promptLabel(sessionId: String) -> String? {
         guard let path = findTranscriptPath(sessionId: sessionId),
               let handle = FileHandle(forReadingAtPath: path) else {
             return nil
         }
         defer { handle.closeFile() }
 
-        // Read first 50KB max (first prompt is always near the top)
-        let data = handle.readData(ofLength: 50_000)
+        // Read first 80KB — the substantive first prompt is near the top
+        let data = handle.readData(ofLength: 80_000)
         guard let content = String(data: data, encoding: .utf8) else { return nil }
 
         for line in content.components(separatedBy: "\n") {
@@ -87,57 +87,78 @@ enum SessionScanner {
                 continue
             }
 
-            var text: String?
+            // Only string content = real user prompt (arrays are tool results)
+            guard let str = messageContent as? String, str.count >= 15 else { continue }
 
-            // Content can be a string or array of content blocks
-            if let str = messageContent as? String {
-                text = str
-            } else if let blocks = messageContent as? [[String: Any]] {
-                // Find first text block (skip tool_result blocks)
-                for block in blocks {
-                    if block["type"] as? String == "text",
-                       let t = block["text"] as? String {
-                        text = t
-                        break
-                    }
-                }
+            let cleaned = cleanPrompt(str)
+            if cleaned.count >= 5 {
+                return cleaned
             }
-
-            guard var prompt = text, !prompt.isEmpty else { continue }
-
-            // Clean up: take first line, trim, lowercase
-            prompt = prompt.components(separatedBy: "\n").first ?? prompt
-            prompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Remove common prefixes
-            let prefixes = ["can you ", "please ", "hey ", "hi ", "help me ", "i want to ", "i need to ", "let's ", "lets "]
-            for prefix in prefixes {
-                if prompt.lowercased().hasPrefix(prefix) {
-                    prompt = String(prompt.dropFirst(prefix.count))
-                    break
-                }
-            }
-
-            // Truncate to ~40 chars at a word boundary
-            if prompt.count > 40 {
-                let truncated = String(prompt.prefix(40))
-                if let lastSpace = truncated.lastIndex(of: " ") {
-                    prompt = String(truncated[..<lastSpace])
-                } else {
-                    prompt = truncated
-                }
-                prompt += "..."
-            }
-
-            // Capitalize first letter
-            if !prompt.isEmpty {
-                prompt = prompt.prefix(1).uppercased() + prompt.dropFirst()
-            }
-
-            return prompt
         }
 
         return nil
+    }
+
+    /// Clean a raw prompt into a short, distinctive label
+    private static func cleanPrompt(_ raw: String) -> String {
+        var text = raw
+
+        // Take first line only
+        text = text.components(separatedBy: "\n").first ?? text
+        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Strip leading special chars (❯, >, -, etc)
+        while let first = text.first, !first.isLetter && !first.isNumber {
+            text = String(text.dropFirst())
+        }
+        text = text.trimmingCharacters(in: .whitespaces)
+
+        // Strip filler prefixes (case insensitive)
+        // If it's a URL, label it as such
+        if text.lowercased().hasPrefix("http") {
+            return "Shared link"
+        }
+
+        let prefixes = [
+            "can you ", "could you ", "please ", "hey ", "hi ", "ok ", "okay ",
+            "help me ", "i want to ", "i need to ", "i'd like to ",
+            "let's ", "lets ", "let me ", "now ", "also ", "and ",
+            "go ahead and ", "try to ", "we need to ", "we should ",
+            "im trying to ", "i'm trying to ", "figure out how to ",
+            "so ", "well ", "alright ", "right ", "btw ",
+            "im about to ", "i'm about to ", "i am going to ",
+            "pull up ", "look at ", "check out ", "show me ",
+            "do ", "run ", "our ", "the ", "my ", "a ",
+        ]
+        var stripped = true
+        while stripped {
+            stripped = false
+            for prefix in prefixes {
+                if text.lowercased().hasPrefix(prefix) {
+                    text = String(text.dropFirst(prefix.count))
+                    stripped = true
+                    break
+                }
+            }
+        }
+
+        // Truncate to 25 chars at word boundary
+        if text.count > 25 {
+            let truncated = String(text.prefix(25))
+            if let lastSpace = truncated.lastIndex(of: " ") {
+                text = String(truncated[..<lastSpace])
+            } else {
+                text = truncated
+            }
+        }
+
+        // Capitalize first letter
+        text = text.trimmingCharacters(in: .whitespaces)
+        if !text.isEmpty {
+            text = text.prefix(1).uppercased() + text.dropFirst()
+        }
+
+        return text.isEmpty ? nil ?? "" : text
     }
 
     // MARK: - Private

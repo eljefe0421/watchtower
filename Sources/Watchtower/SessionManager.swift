@@ -50,10 +50,10 @@ final class SessionManager {
                     continue
                 }
 
-                // Use first user prompt as label, fall back to folder name
-                let promptLabel = SessionScanner.firstPromptLabel(sessionId: disc.sessionId)
+                // Use most recent user prompt as label, fall back to folder name
+                let promptLabel = SessionScanner.promptLabel(sessionId: disc.sessionId)
                 let folderName = (disc.cwd as NSString).lastPathComponent
-                let label = promptLabel ?? folderName
+                let label = (promptLabel?.isEmpty == false) ? promptLabel! : folderName
 
                 sessions[disc.sessionId] = AgentSession(
                     id: disc.sessionId,
@@ -88,8 +88,11 @@ final class SessionManager {
             idleTimers.removeValue(forKey: id)
         }
 
+        // Deduplicate labels — append short ID when names collide
+        deduplicateLabels()
+
         if added > 0 || !deadIds.isEmpty {
-            Log.info("[Watchtower] Scan: found \(discovered.count) alive, added \(added), removed \(deadIds.count) dead")
+            Log.info("[Watchtower] Scan: found \(discovered.count) alive, added \(added), removed \(deadIds.count + staleIds.count) stale/dead")
             NotchWindowController.shared.refreshPanel()
         }
     }
@@ -99,6 +102,24 @@ final class SessionManager {
         scanForSessions() // immediate first scan
         scanTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             self?.scanForSessions()
+        }
+    }
+
+    /// When multiple sessions have the same label, append #xxxx short ID
+    private func deduplicateLabels() {
+        // Group sessions by base label (without any existing #suffix)
+        var labelGroups: [String: [String]] = [:]  // baseLabel -> [sessionIds]
+        for (id, session) in sessions {
+            let base = session.label.components(separatedBy: " #").first ?? session.label
+            labelGroups[base, default: []].append(id)
+        }
+
+        for (_, ids) in labelGroups where ids.count > 1 {
+            for id in ids {
+                let base = sessions[id]?.label.components(separatedBy: " #").first ?? ""
+                let shortId = String(id.prefix(4))
+                sessions[id]?.label = "\(base) #\(shortId)"
+            }
         }
     }
 
@@ -191,9 +212,9 @@ final class SessionManager {
 
     private func ensureSession(for event: HookEvent) {
         if sessions[event.sessionId] == nil {
-            let promptLabel = SessionScanner.firstPromptLabel(sessionId: event.sessionId)
+            let promptLabel = SessionScanner.promptLabel(sessionId: event.sessionId)
             let folderName = (event.cwd as NSString).lastPathComponent
-            let label = promptLabel ?? folderName
+            let label = (promptLabel?.isEmpty == false) ? promptLabel! : folderName
 
             sessions[event.sessionId] = AgentSession(
                 id: event.sessionId,
