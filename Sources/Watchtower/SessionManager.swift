@@ -57,11 +57,17 @@ final class SessionManager {
                 let label = customName
                     ?? ((promptLabel?.isEmpty == false) ? promptLabel! : folderName)
 
+                // If transcript was modified recently, the session is probably
+                // waiting for input (red). Otherwise it's idle (gray).
+                let recentThreshold: TimeInterval = 300  // 5 minutes
+                let isRecent = Date().timeIntervalSince(lastActivity) < recentThreshold
+                let initialStatus: AgentStatus = isRecent ? .needsAttention : .idle
+
                 sessions[disc.sessionId] = AgentSession(
                     id: disc.sessionId,
                     label: label,
                     cwd: disc.cwd,
-                    status: .idle,
+                    status: initialStatus,
                     lastEventTime: lastActivity,
                     entrypoint: disc.entrypoint
                 )
@@ -172,8 +178,9 @@ final class SessionManager {
             sessions[event.sessionId]?.lastEventTime = Date()
 
         case "Stop":
-            // Agent finished responding — waiting for user's next message
-            sessions[event.sessionId]?.status = .needsAttention
+            // Agent finished its task — green (done)
+            // If it's asking a question, idle_prompt will fire next and flip to red
+            sessions[event.sessionId]?.status = .done
             sessions[event.sessionId]?.currentTool = nil
             sessions[event.sessionId]?.currentToolSummary = nil
             sessions[event.sessionId]?.pendingPermission = nil
