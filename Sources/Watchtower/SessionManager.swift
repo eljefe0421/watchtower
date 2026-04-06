@@ -7,6 +7,7 @@ final class SessionManager {
 
     var sessions: [String: AgentSession] = [:]
     private var idleTimers: [String: Timer] = [:]
+    private var doneTimestamps: [String: Date] = [:]  // when each session went green
 
     /// Sorted sessions for display (needs-attention first, then working, then idle)
     var sortedSessions: [AgentSession] {
@@ -161,10 +162,29 @@ final class SessionManager {
                     )
                 }
             } else if event.notificationType == "idle_prompt" {
-                // Agent is waiting for user input — that's needs attention, not idle
-                sessions[event.sessionId]?.status = .needsAttention
-                sessions[event.sessionId]?.currentTool = nil
-                sessions[event.sessionId]?.currentToolSummary = nil
+                // If we JUST went green (done), let it breathe for 3 seconds
+                // before flipping to red. Otherwise go red immediately.
+                let greenStickyDuration: TimeInterval = 3
+                if let doneAt = doneTimestamps[event.sessionId],
+                   Date().timeIntervalSince(doneAt) < greenStickyDuration {
+                    // Schedule the red flip after the remaining sticky time
+                    let remaining = greenStickyDuration - Date().timeIntervalSince(doneAt)
+                    let sid = event.sessionId
+                    DispatchQueue.main.asyncAfter(deadline: .now() + remaining) { [weak self] in
+                        guard let self else { return }
+                        // Only flip if still green (user might have started new work)
+                        if self.sessions[sid]?.status == .done {
+                            self.sessions[sid]?.status = .needsAttention
+                            self.doneTimestamps.removeValue(forKey: sid)
+                            NotchWindowController.shared.refreshPanel()
+                        }
+                    }
+                } else {
+                    sessions[event.sessionId]?.status = .needsAttention
+                    sessions[event.sessionId]?.currentTool = nil
+                    sessions[event.sessionId]?.currentToolSummary = nil
+                    doneTimestamps.removeValue(forKey: event.sessionId)
+                }
             }
             sessions[event.sessionId]?.lastEventTime = Date()
 
@@ -178,13 +198,14 @@ final class SessionManager {
             sessions[event.sessionId]?.lastEventTime = Date()
 
         case "Stop":
-            // Agent finished its task — green (done)
-            // If it's asking a question, idle_prompt will fire next and flip to red
+            // Agent finished — green (done). Stays green for 3s before
+            // idle_prompt can flip it to red. Gives that "build complete" moment.
             sessions[event.sessionId]?.status = .done
             sessions[event.sessionId]?.currentTool = nil
             sessions[event.sessionId]?.currentToolSummary = nil
             sessions[event.sessionId]?.pendingPermission = nil
             sessions[event.sessionId]?.lastEventTime = Date()
+            doneTimestamps[event.sessionId] = Date()
 
         case "SubagentStart":
             sessions[event.sessionId]?.status = .working
