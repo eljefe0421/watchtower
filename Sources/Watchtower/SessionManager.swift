@@ -57,11 +57,10 @@ final class SessionManager {
                 let label = customName
                     ?? ((promptLabel?.isEmpty == false) ? promptLabel! : folderName)
 
-                // Recent activity = probably waiting for input (red)
-                // Older = finished a while ago (green/done)
-                let recentThreshold: TimeInterval = 300  // 5 minutes
-                let isRecent = Date().timeIntervalSince(lastActivity) < recentThreshold
-                let initialStatus: AgentStatus = isRecent ? .needsAttention : .done
+                // Discovered sessions always start green (done).
+                // Only hook events can set yellow (working) or red (needs input).
+                // We don't know the real status without hooks — green is safest.
+                let initialStatus: AgentStatus = .done
 
                 sessions[disc.sessionId] = AgentSession(
                     id: disc.sessionId,
@@ -151,6 +150,7 @@ final class SessionManager {
             sessions[event.sessionId]?.lastEventTime = Date()
 
         case "Notification":
+            Log.info("[Watchtower] Notification detail: type=\(event.notificationType ?? "nil") msg=\(event.message?.prefix(80) ?? "nil")")
             if event.notificationType == "permission_prompt" || event.message?.contains("permission") == true {
                 sessions[event.sessionId]?.status = .needsAttention
                 if let toolName = event.toolName {
