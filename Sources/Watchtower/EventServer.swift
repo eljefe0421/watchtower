@@ -173,19 +173,35 @@ final class EventServer {
             return
         }
 
-        // POST /name — rename a session
+        // POST /name — rename a session (accepts session_id OR pid)
         if method == "POST", path == "/name" || path == "/name/" {
             if let body,
                let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
-               let sessionId = json["session_id"] as? String,
                let name = json["name"] as? String {
-                SessionScanner.setCustomName(sessionId: sessionId, name: name)
-                // Update the in-memory session too
-                DispatchQueue.main.async {
-                    SessionManager.shared.sessions[sessionId]?.label = name
-                    NotchWindowController.shared.refreshPanel()
+
+                // Find session ID — either directly provided or resolved from PID
+                var sessionId = json["session_id"] as? String
+
+                if sessionId == nil, let pid = json["pid"] as? Int {
+                    // Walk up the process tree from this PID to find a matching session
+                    sessionId = SessionScanner.findSessionByPid(pid)
                 }
-                Log.info("[Watchtower] Renamed \(sessionId.prefix(8)) → \"\(name)\"")
+
+                if let sessionId {
+                    SessionScanner.setCustomName(sessionId: sessionId, name: name)
+                    DispatchQueue.main.async {
+                        SessionManager.shared.sessions[sessionId]?.label = name
+                        NotchWindowController.shared.refreshPanel()
+                    }
+                    Log.info("[Watchtower] Renamed \(sessionId.prefix(8)) → \"\(name)\"")
+                    let resp = "{\"ok\": true, \"session_id\": \"\(sessionId)\"}".data(using: .utf8)
+                    sendResponse(connection: connection, status: 200, body: resp)
+                } else {
+                    Log.info("[Watchtower] Rename failed — couldn't find session for pid")
+                    let resp = "{\"ok\": false, \"error\": \"session not found\"}".data(using: .utf8)
+                    sendResponse(connection: connection, status: 200, body: resp)
+                }
+                return
             }
             sendResponse(connection: connection, status: 200, body: nil)
             return

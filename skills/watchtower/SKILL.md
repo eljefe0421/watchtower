@@ -46,42 +46,16 @@ cd ~/The\ Lab/Projects/watchtower && make start
 
 ### Rename current session
 
-Don't use a bash one-liner. Instead, do this in TWO steps:
+Send the shell PID — the server walks the process tree to find the right session:
 
-**Step 1:** Find this session's ID by running:
-```bash
-python3 -c "
-import json, os, glob
-ppid = os.getppid()
-# Walk up the process tree to find the claude process
-pid = ppid
-for _ in range(10):
-    for f in glob.glob(os.path.expanduser('~/.claude/sessions/*.json')):
-        d = json.load(open(f))
-        if d['pid'] == pid:
-            print(d['sessionId'])
-            exit()
-    # Get parent of current pid
-    try:
-        with open(f'/proc/{pid}/stat') as sf:
-            pid = int(sf.read().split()[3])
-    except:
-        pid = int(os.popen(f'ps -o ppid= -p {pid}').read().strip() or '0')
-# Fallback: most recently modified session file
-import time
-best = max(glob.glob(os.path.expanduser('~/.claude/sessions/*.json')), key=os.path.getmtime)
-print(json.load(open(best))['sessionId'])
-"
-```
-
-**Step 2:** Use the session ID from step 1 to rename:
 ```bash
 curl -s -X POST http://localhost:47777/name \
   -H 'Content-Type: application/json' \
-  -d '{"session_id": "PASTE_SESSION_ID", "name": "DESIRED_NAME"}'
+  -d "{\"pid\": $$, \"name\": \"THE_NAME_HERE\"}"
 ```
 
-Replace PASTE_SESSION_ID and DESIRED_NAME. Names persist in `~/.claude/watchtower/`.
+Replace THE_NAME_HERE with the desired name. That's it — one command.
+Names persist in `~/.claude/watchtower/` across restarts.
 
 ### Toggle notch visibility (hide/show)
 ```bash

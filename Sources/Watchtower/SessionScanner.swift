@@ -161,6 +161,50 @@ enum SessionScanner {
         return text.isEmpty ? nil ?? "" : text
     }
 
+    // MARK: - PID Resolution
+
+    /// Walk up the process tree from a given PID to find a matching session.
+    /// The shell running the curl command is a child of the claude process.
+    static func findSessionByPid(_ startPid: Int) -> String? {
+        // Load all session PIDs
+        let sessionsDir = NSHomeDirectory() + "/.claude/sessions"
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: sessionsDir) else {
+            return nil
+        }
+
+        var sessionsByPid: [Int: String] = [:]
+        for file in files where file.hasSuffix(".json") {
+            let path = sessionsDir + "/" + file
+            guard let data = FileManager.default.contents(atPath: path),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let pid = json["pid"] as? Int,
+                  let sid = json["sessionId"] as? String else { continue }
+            sessionsByPid[pid] = sid
+        }
+
+        // Walk up the process tree (up to 20 levels)
+        var pid = startPid
+        for _ in 0..<20 {
+            if let sid = sessionsByPid[pid] {
+                return sid
+            }
+            // Get parent PID
+            let pipe = Pipe()
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/ps")
+            process.arguments = ["-o", "ppid=", "-p", "\(pid)"]
+            process.standardOutput = pipe
+            try? process.run()
+            process.waitUntilExit()
+            let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard let parentPid = Int(output), parentPid > 1, parentPid != pid else { break }
+            pid = parentPid
+        }
+
+        return nil
+    }
+
     // MARK: - Custom Names
 
     private static let metadataDir = NSHomeDirectory() + "/.claude/watchtower"
