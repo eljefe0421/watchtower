@@ -7,7 +7,6 @@ final class SessionManager {
 
     var sessions: [String: AgentSession] = [:]
     private var idleTimers: [String: Timer] = [:]
-    private var doneTimestamps: [String: Date] = [:]  // when each session went green
 
     /// Sorted sessions for display (needs-attention first, then working, then idle)
     var sortedSessions: [AgentSession] {
@@ -162,28 +161,12 @@ final class SessionManager {
                     )
                 }
             } else if event.notificationType == "idle_prompt" {
-                // If we JUST went green (done), let it breathe for 3 seconds
-                // before flipping to red. Otherwise go red immediately.
-                let greenStickyDuration: TimeInterval = 3
-                if let doneAt = doneTimestamps[event.sessionId],
-                   Date().timeIntervalSince(doneAt) < greenStickyDuration {
-                    // Schedule the red flip after the remaining sticky time
-                    let remaining = greenStickyDuration - Date().timeIntervalSince(doneAt)
-                    let sid = event.sessionId
-                    DispatchQueue.main.asyncAfter(deadline: .now() + remaining) { [weak self] in
-                        guard let self else { return }
-                        // Only flip if still green (user might have started new work)
-                        if self.sessions[sid]?.status == .done {
-                            self.sessions[sid]?.status = .needsAttention
-                            self.doneTimestamps.removeValue(forKey: sid)
-                            NotchWindowController.shared.refreshPanel()
-                        }
-                    }
-                } else {
-                    sessions[event.sessionId]?.status = .needsAttention
+                // idle_prompt = Claude finished, waiting for next message.
+                // That's green (done), not red. Red is only for permission blocks.
+                if sessions[event.sessionId]?.status != .done {
+                    sessions[event.sessionId]?.status = .done
                     sessions[event.sessionId]?.currentTool = nil
                     sessions[event.sessionId]?.currentToolSummary = nil
-                    doneTimestamps.removeValue(forKey: event.sessionId)
                 }
             }
             sessions[event.sessionId]?.lastEventTime = Date()
@@ -205,7 +188,6 @@ final class SessionManager {
             sessions[event.sessionId]?.currentToolSummary = nil
             sessions[event.sessionId]?.pendingPermission = nil
             sessions[event.sessionId]?.lastEventTime = Date()
-            doneTimestamps[event.sessionId] = Date()
 
         case "SubagentStart":
             sessions[event.sessionId]?.status = .working
