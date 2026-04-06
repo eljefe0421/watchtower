@@ -26,6 +26,11 @@ final class NotchPanel: NSPanel {
         self.isMovableByWindowBackground = false
     }
 
+    // Prevent macOS from constraining our window below the menu bar
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        return frameRect  // don't constrain — we want to sit in the menu bar area
+    }
+
     func setContent<V: View>(_ view: V) {
         let hosting = NSHostingView(rootView: AnyView(view))
         self.contentView = hosting
@@ -91,7 +96,15 @@ final class NotchWindowController {
 
         panel.positionForNotch(expanded: false)
         panel.orderFrontRegardless()
-        Log.info("[Watchtower] Panel is visible: \(panel.isVisible)")
+
+        // Log actual frame to see if macOS constrains it
+        Log.info("[Watchtower] Requested vs actual frame: \(panel.frame)")
+
+        // Force reposition after display in case macOS adjusted it
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            panel.positionForNotch(expanded: false)
+            Log.info("[Watchtower] After re-position: \(panel.frame)")
+        }
 
         installClickOutsideMonitor()
     }
