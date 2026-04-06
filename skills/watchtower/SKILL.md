@@ -46,22 +46,42 @@ cd ~/The\ Lab/Projects/watchtower && make start
 
 ### Rename current session
 
-To rename THIS session in Watchtower, POST to the /name endpoint.
-The session_id comes from the CLAUDE_SESSION_ID environment variable,
-or you can find it from the transcript path.
+Don't use a bash one-liner. Instead, do this in TWO steps:
 
+**Step 1:** Find this session's ID by running:
 ```bash
-# Get the current session ID
-SESSION_ID=$(ls -t ~/.claude/sessions/*.json | head -1 | xargs python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['sessionId'])")
-
-# Rename it
-curl -s -X POST http://localhost:47777/name \
-  -H 'Content-Type: application/json' \
-  -d "{\"session_id\": \"$SESSION_ID\", \"name\": \"THE_NAME_HERE\"}"
+python3 -c "
+import json, os, glob
+ppid = os.getppid()
+# Walk up the process tree to find the claude process
+pid = ppid
+for _ in range(10):
+    for f in glob.glob(os.path.expanduser('~/.claude/sessions/*.json')):
+        d = json.load(open(f))
+        if d['pid'] == pid:
+            print(d['sessionId'])
+            exit()
+    # Get parent of current pid
+    try:
+        with open(f'/proc/{pid}/stat') as sf:
+            pid = int(sf.read().split()[3])
+    except:
+        pid = int(os.popen(f'ps -o ppid= -p {pid}').read().strip() or '0')
+# Fallback: most recently modified session file
+import time
+best = max(glob.glob(os.path.expanduser('~/.claude/sessions/*.json')), key=os.path.getmtime)
+print(json.load(open(best))['sessionId'])
+"
 ```
 
-Replace THE_NAME_HERE with the user's desired name. Keep it short (under 25 chars).
-The name persists across Watchtower restarts in `~/.claude/watchtower/{sessionId}.json`.
+**Step 2:** Use the session ID from step 1 to rename:
+```bash
+curl -s -X POST http://localhost:47777/name \
+  -H 'Content-Type: application/json' \
+  -d '{"session_id": "PASTE_SESSION_ID", "name": "DESIRED_NAME"}'
+```
+
+Replace PASTE_SESSION_ID and DESIRED_NAME. Names persist in `~/.claude/watchtower/`.
 
 ### Toggle notch visibility (hide/show)
 ```bash
