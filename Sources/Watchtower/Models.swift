@@ -3,10 +3,10 @@ import Foundation
 // MARK: - Agent Session
 
 enum AgentStatus: String {
-    case working        // green — actively using tools
-    case needsAttention // red pulse — permission prompt or question
-    case error          // amber — something failed
-    case idle           // gray — finished, waiting for next prompt
+    case done           // green — task complete, stopped normally
+    case working        // yellow — actively using tools
+    case needsAttention // red pulse — needs user input
+    case idle           // gray — idle chats, other status
 }
 
 struct PermissionRequest {

@@ -81,7 +81,7 @@ final class SessionManager {
         // Also remove tracked sessions that have gone stale (idle 2+ hours, no hook activity)
         let staleIds = sessions.keys.filter { id in
             guard let session = sessions[id] else { return false }
-            return session.status == .idle
+            return (session.status == .idle || session.status == .done)
                 && Date().timeIntervalSince(session.lastEventTime) > staleThreshold
         }
         for id in staleIds {
@@ -171,7 +171,7 @@ final class SessionManager {
             sessions[event.sessionId]?.lastEventTime = Date()
 
         case "Stop":
-            sessions[event.sessionId]?.status = .idle
+            sessions[event.sessionId]?.status = .done
             sessions[event.sessionId]?.currentTool = nil
             sessions[event.sessionId]?.currentToolSummary = nil
             sessions[event.sessionId]?.pendingPermission = nil

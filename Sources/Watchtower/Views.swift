@@ -120,10 +120,10 @@ struct StatusDot: View {
 
     private var dotColor: Color {
         switch status {
-        case .working: return Color(red: 0.2, green: 0.9, blue: 0.3)      // bright green
-        case .needsAttention: return Color(red: 1.0, green: 0.25, blue: 0.25) // bright red
-        case .error: return Color(red: 1.0, green: 0.6, blue: 0.0)         // amber
-        case .idle: return Color(white: 0.45)                               // dim gray
+        case .done: return Color(red: 0.2, green: 0.9, blue: 0.3)         // green — task complete
+        case .working: return Color(red: 1.0, green: 0.8, blue: 0.0)      // yellow — building
+        case .needsAttention: return Color(red: 1.0, green: 0.25, blue: 0.25) // red — needs input
+        case .idle: return Color(white: 0.45)                               // gray — idle
         }
     }
 }
@@ -265,6 +265,15 @@ struct AgentRowView: View {
                                 .lineLimit(1)
                         }
                     }
+                } else if session.status == .done {
+                    HStack(spacing: 8) {
+                        Text("Done")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.green.opacity(0.6))
+                        ActionButton(title: "Terminal", color: .blue) {
+                            TerminalLauncher.jumpToSession(cwd: session.cwd)
+                        }
+                    }
                 } else if session.status == .idle {
                     HStack(spacing: 8) {
                         Text("Idle")
@@ -361,9 +370,9 @@ struct MenuBarView: View {
 
     private func statusColor(_ status: AgentStatus) -> Color {
         switch status {
-        case .working: return .green
+        case .done: return .green
+        case .working: return .yellow
         case .needsAttention: return .red
-        case .error: return .orange
         case .idle: return .gray
         }
     }
