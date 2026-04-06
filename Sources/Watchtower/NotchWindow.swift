@@ -17,7 +17,7 @@ final class NotchPanel: NSPanel {
         )
         self.hasShadow = false
         self.backgroundColor = .clear
-        self.level = .statusBar + 1
+        self.level = .screenSaver
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         self.isFloatingPanel = true
         self.isOpaque = false
@@ -41,7 +41,7 @@ final class NotchPanel: NSPanel {
         let hasNotch = screen.safeAreaInsets.top > 0
         let notchHeight = screen.safeAreaInsets.top
 
-        let compactHeight: CGFloat = hasNotch ? notchHeight + 34 : 50
+        let compactHeight: CGFloat = hasNotch ? notchHeight : 38
         let expandedHeight: CGFloat = hasNotch ? notchHeight + 320 : 360
         let panelHeight = expanded ? expandedHeight : compactHeight
 

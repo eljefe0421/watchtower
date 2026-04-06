@@ -20,6 +20,7 @@ struct NotchContentView: View {
                 CompactDotsView()
             }
         }
+        .edgesIgnoringSafeArea(.all)
         .onTapGesture {
             controller.toggleExpanded()
         }
@@ -68,23 +69,23 @@ struct NotchBackgroundShape: Shape {
 struct CompactDotsView: View {
     var body: some View {
         let sessions = SessionManager.shared.sortedSessions
+        let notchH = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 })?.safeAreaInsets.top ?? 0
 
-        VStack {
-            Spacer() // push dots to bottom of panel (below physical notch)
-            HStack(spacing: 8) {
-                if sessions.isEmpty {
-                    Circle()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 8, height: 8)
-                } else {
-                    ForEach(sessions) { session in
-                        StatusDot(status: session.status)
-                    }
+        HStack(spacing: 8) {
+            if sessions.isEmpty {
+                Circle()
+                    .fill(Color.white.opacity(0.2))
+                    .frame(width: 8, height: 8)
+            } else {
+                ForEach(sessions) { session in
+                    StatusDot(status: session.status)
                 }
             }
-            .padding(.bottom, 10)
         }
         .padding(.horizontal, 16)
+        // Center dots vertically in the notch area (top half of panel)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(.bottom, 8)
     }
 }
 
